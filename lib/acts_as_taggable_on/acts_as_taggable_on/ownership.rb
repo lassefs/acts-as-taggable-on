@@ -30,16 +30,20 @@ module ActsAsTaggableOn::Taggable
     
     module InstanceMethods
       def owner_tags_on(owner, context)
+        tagging_table_name = ActsAsTaggableOn::Tagging.table_name
+
         if owner.nil?
-          scope = base_tags.where([%(#{ActsAsTaggableOn::Tagging.table_name}.context = ?), context.to_s])                    
+          scope = base_tags.where([%(#{tagging_table_name}.context = ? AND
+                                     #{tagging_table_name}.deleted_at IS NULL), context.to_s])
         else
-          scope = base_tags.where([%(#{ActsAsTaggableOn::Tagging.table_name}.context = ? AND
-                                     #{ActsAsTaggableOn::Tagging.table_name}.tagger_id = ? AND
-                                     #{ActsAsTaggableOn::Tagging.table_name}.tagger_type = ?), context.to_s, owner.id, owner.class.to_s])          
+          scope = base_tags.where([%(#{tagging_table_name}.context = ? AND
+                                     #{tagging_table_name}.tagger_id = ? AND
+                                     #{tagging_table_name}.tagger_type = ? AND
+                                     #{tagging_table_name}.deleted_at IS NULL), context.to_s, owner.id, owner.class.to_s])
         end
         # when preserving tag order, return tags in created order
         # if we added the order to the association this would always apply
-        scope = scope.order("#{ActsAsTaggableOn::Tagging.table_name}.id") if self.class.preserve_tag_order?
+        scope = scope.order("#{tagging_table_name}.id") if self.class.preserve_tag_order?
         scope.all
       end
 
@@ -104,7 +108,8 @@ module ActsAsTaggableOn::Taggable
             if old_tags.present?
               old_taggings = ActsAsTaggableOn::Tagging.where(:taggable_id => id, :taggable_type => self.class.base_class.to_s,
                                                              :tagger_type => owner.class.to_s, :tagger_id => owner.id,
-                                                             :tag_id => old_tags, :context => context).all
+                                                             :tag_id => old_tags, :context => context,
+                                                             :deleted_at => nil).all
             end
           
             # Destroy old taggings:

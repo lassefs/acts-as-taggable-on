@@ -238,7 +238,7 @@ module ActsAsTaggableOn::Taggable
         tag_table_name = ActsAsTaggableOn::Tag.table_name
         tagging_table_name = ActsAsTaggableOn::Tagging.table_name
 
-        opts  =  ["#{tagging_table_name}.context = ?", context.to_s]
+        opts  =  ["#{tagging_table_name}.context = ? AND #{tagging_table_name}.deleted_at IS NULL", context.to_s]
         scope = base_tags.where(opts)
 
         if ActsAsTaggableOn::Tag.using_postgresql?
@@ -254,7 +254,7 @@ module ActsAsTaggableOn::Taggable
       ##
       # Returns all tags that are not owned of a given context
       def tags_on(context)
-        scope = base_tags.where(["#{ActsAsTaggableOn::Tagging.table_name}.context = ? AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_id IS NULL", context.to_s])
+        scope = base_tags.where(["#{ActsAsTaggableOn::Tagging.table_name}.context = ? AND #{ActsAsTaggableOn::Tagging.table_name}.tagger_id IS NULL AND #{ActsAsTaggableOn::Tagging.table_name}.deleted_at IS NULL", context.to_s])
         # when preserving tag order, return tags in created order
         # if we added the order to the association this would always apply
         scope = scope.order("#{ActsAsTaggableOn::Tagging.table_name}.id") if self.class.preserve_tag_order?
@@ -333,7 +333,8 @@ module ActsAsTaggableOn::Taggable
 
           # Destroy old taggings:
           if old_taggings.present?
-            ActsAsTaggableOn::Tagging.destroy_all "#{ActsAsTaggableOn::Tagging.primary_key}".to_sym => old_taggings.map(&:id)
+            #ActsAsTaggableOn::Tagging.destroy_all "#{ActsAsTaggableOn::Tagging.primary_key}".to_sym => old_taggings.map(&:id)
+            old_taggings.each { |ot| ot.destroy(:force)}
           end
 
           # Create new taggings:

@@ -16,6 +16,7 @@ class ActsAsTaggableOnMigration < ActiveRecord::Migration
       # http://bit.ly/vgW2Ql
       t.string :context, :limit => 128
 
+      t.datetime :deleted_at
       t.datetime :created_at
     end
 
