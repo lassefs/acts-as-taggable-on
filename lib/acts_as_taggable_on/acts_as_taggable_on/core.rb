@@ -90,6 +90,7 @@ module ActsAsTaggableOn::Taggable
         context = options.delete(:on)
         owned_by = options.delete(:owned_by)
         alias_base_name = undecorated_table_name.gsub('.','_')
+        quote = ActsAsTaggableOn::Tag.using_postgresql? ? '"' : ''
 
         if options.delete(:exclude)
           if options.delete(:wild)
@@ -119,7 +120,7 @@ module ActsAsTaggableOn::Taggable
           )
 
           tagging_join  = "JOIN #{ActsAsTaggableOn::Tagging.table_name} #{taggings_alias}" +
-                          "  ON #{taggings_alias}.taggable_id = #{table_name}.#{primary_key}" +
+                          "  ON #{taggings_alias}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
                           " AND #{taggings_alias}.taggable_type = #{quote_value(base_class.name)}"
           tagging_join << " AND " + sanitize_sql(["#{taggings_alias}.context = ?", context.to_s]) if context
 
@@ -138,7 +139,7 @@ module ActsAsTaggableOn::Taggable
             taggings_alias = adjust_taggings_alias("#{alias_base_name[0..11]}_taggings_#{sha_prefix(tag.name)}")
 
             tagging_join  = "JOIN #{ActsAsTaggableOn::Tagging.table_name} #{taggings_alias}" +
-                            "  ON #{taggings_alias}.taggable_id = #{table_name}.#{primary_key}" +
+                            "  ON #{taggings_alias}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
                             " AND #{taggings_alias}.taggable_type = #{quote_value(base_class.name)}" +
                             " AND #{taggings_alias}.tag_id = #{tag.id}"
             tagging_join << " AND " + sanitize_sql(["#{taggings_alias}.context = ?", context.to_s]) if context
@@ -148,7 +149,7 @@ module ActsAsTaggableOn::Taggable
                     sanitize_sql([
                         "#{taggings_alias}.tagger_id = ? AND #{taggings_alias}.tagger_type = ?",
                         owned_by.id,
-                        owned_by.class.to_s
+                        owned_by.class.base_class.to_s
                     ])
             end
 
@@ -160,17 +161,19 @@ module ActsAsTaggableOn::Taggable
 
         if options.delete(:match_all)
           joins << "LEFT OUTER JOIN #{ActsAsTaggableOn::Tagging.table_name} #{taggings_alias}" +
-                   "  ON #{taggings_alias}.taggable_id = #{table_name}.#{primary_key}" +
+                   "  ON #{taggings_alias}.taggable_id = #{quote}#{table_name}#{quote}.#{primary_key}" +
                    " AND #{taggings_alias}.taggable_type = #{quote_value(base_class.name)}"
 
 
           group_columns = ActsAsTaggableOn::Tag.using_postgresql? ? grouped_column_names_for(self) : "#{table_name}.#{primary_key}"
-          group = "#{group_columns} HAVING COUNT(#{taggings_alias}.taggable_id) = #{tags.size}"
+          group = group_columns
+          having = "COUNT(#{taggings_alias}.taggable_id) = #{tags.size}"
         end
 
         scoped(:select     => select_clause,
                :joins      => joins.join(" "),
                :group      => group,
+               :having     => having,
                :conditions => conditions.join(" AND "),
                :order      => options[:order],
                :readonly   => false)

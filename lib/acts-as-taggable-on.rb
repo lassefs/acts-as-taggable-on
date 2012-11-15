@@ -16,11 +16,15 @@ module ActsAsTaggableOn
   mattr_accessor :force_parameterize
   @@force_parameterize = false
 
+  mattr_accessor :strict_case_match
+  @@strict_case_match = false
+
   mattr_accessor :remove_unused_tags
   self.remove_unused_tags = false
 
   def self.glue
-    @@delimiter.ends_with?(" ") ? @@delimiter : "#{@@delimiter} "
+    delimiter = @@delimiter.kind_of?(Array) ? @@delimiter[0] : @@delimiter
+    delimiter.ends_with?(" ") ? delimiter : "#{delimiter} "
   end
 
   def self.setup
